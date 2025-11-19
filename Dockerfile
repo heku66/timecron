@@ -1,16 +1,34 @@
 FROM ubuntu:22.04
 
-# 防止交互
+# 防止交互窗口
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 设置工作目录
+# 安装基础工具 + wget + curl
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    ca-certificates \
+    && apt-get clean
+
+# ---- 安装 Go（版本可自定义） ----
+ENV GO_VERSION=1.22.5
+
+RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
+    && rm go${GO_VERSION}.linux-amd64.tar.gz
+
+# 配置 Go 环境变量
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# ---- 安装 timecron（版本可自定义） ----
+# 你可以修改版本地址，例如 timecron-linux-1.1.0
+ENV TIMECON_VERSION=1.1.0
+
 WORKDIR /app
 
-# 把项目里的二进制复制进镜像
-COPY bin/timecron /app/timecron
+RUN wget -O timecron \
+    https://gitee.com/xnkyn/assets/releases/download/timecron-v1/timecron-linux-${TIMECON_VERSION} \
+    && chmod +x timecron
 
-# 确保执行权限（即使你本地已经 chmod 了，这是安全写法）
-RUN chmod +x /app/timecron
-
-# 启动时前台直接运行
+# 默认执行 timecron
 ENTRYPOINT ["/app/timecron"]
