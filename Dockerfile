@@ -1,34 +1,31 @@
-FROM ubuntu:22.04
+# =========================
+# Build stage：下载 timecron
+# =========================
+FROM alpine AS builder
 
-# 防止交互窗口
-ENV DEBIAN_FRONTEND=noninteractive
+# 安装 wget、ca-certificates
+RUN apk add --no-cache wget ca-certificates
 
-# 安装基础工具 + wget + curl
-RUN apt-get update && apt-get install -y \
-    wget \
-    curl \
-    ca-certificates \
-    && apt-get clean
-
-# ---- 安装 Go（版本可自定义） ----
-ENV GO_VERSION=1.22.5
-
-RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm go${GO_VERSION}.linux-amd64.tar.gz
-
-# 配置 Go 环境变量
-ENV PATH="/usr/local/go/bin:${PATH}"
-
-# ---- 安装 timecron（版本可自定义） ----
-# 你可以修改版本地址，例如 timecron-linux-1.1.0
+# 设置 timecron 版本，可自定义
 ENV TIMECON_VERSION=1.1.0
-
 WORKDIR /app
 
+# 从网络下载二进制并赋权
 RUN wget -O timecron \
     https://gitee.com/xnkyn/assets/releases/download/timecron-v1/timecron-linux-${TIMECON_VERSION} \
     && chmod +x timecron
 
-# 默认执行 timecron
-ENTRYPOINT ["/app/timecron"]
+
+# =========================
+# Final stage：最小运行镜像
+# =========================
+FROM alpine
+
+# 安装 gcompat 支持 glibc 风格 Go 二进制
+RUN apk add --no-cache gcompat
+
+# 复制 timecron 二进制到最终镜像
+COPY --from=builder /app/timecron /usr/local/bin/timecron
+
+# 默认启动 timecron
+CMD ["/usr/local/bin/timecron"]
